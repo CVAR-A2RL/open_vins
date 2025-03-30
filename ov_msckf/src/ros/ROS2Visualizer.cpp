@@ -321,6 +321,22 @@ void ROS2Visualizer::visualize_odometry(double timestamp) {
         odomIinM.twist.covariance[6 * r + c] = cov_plus(r + 6, c + 6);
       }
     }
+
+    // Aerostack2 adapter
+    odomIinM.header.frame_id = "drone0/odom";
+    odomIinM.child_frame_id = "drone0/base_link";
+    odomIinM.pose.pose.position.x *= -1.0;
+    odomIinM.pose.pose.position.y *= -1.0;
+
+    // IMU 180 degree rotation
+    tf2::Quaternion rotation_z_180;
+    rotation_z_180.setRPY(0, 0, M_PI);  // Roll = 0, Pitch = 0, Yaw = π (180°)
+    tf2::Quaternion original_orientation;
+    tf2::fromMsg(odomIinM.pose.pose.orientation, original_orientation);
+    tf2::Quaternion new_orientation = rotation_z_180 * original_orientation;
+    new_orientation.normalize();
+    odomIinM.pose.pose.orientation = tf2::toMsg(new_orientation);
+    
     pub_odomimu->publish(odomIinM);
   }
 
