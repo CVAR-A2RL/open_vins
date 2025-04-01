@@ -30,6 +30,7 @@
 #include "utils/dataset_reader.h"
 #include "utils/print.h"
 #include "utils/sensor_data.h"
+#include <cv_bridge/cv_bridge.h>
 
 using namespace ov_core;
 using namespace ov_type;
@@ -210,9 +211,27 @@ void ROS2Visualizer::setup_subscribers(std::shared_ptr<ov_core::YamlParser> pars
       // create subscriber
       // auto sub = _node->create_subscription<sensor_msgs::msg::Image>(
       //    cam_topic, rclcpp::SensorDataQoS(), std::bind(&ROS2Visualizer::callback_monocular, this, std::placeholders::_1, i));
-      auto sub = _node->create_subscription<sensor_msgs::msg::Image>(
-          cam_topic, 10, [this, i](const sensor_msgs::msg::Image::SharedPtr msg0) { callback_monocular(msg0, i); });
-      subs_cam.push_back(sub);
+
+      // check if its compressed
+      if (cam_topic.find("compressed") != std::string::npos) {
+        PRINT_INFO("subscribing to cam compressed (mono): %s\n", cam_topic.c_str());
+        auto sub = _node->create_subscription<sensor_msgs::msg::CompressedImage>(
+            cam_topic, 10, [this, i](const sensor_msgs::msg::CompressedImage::SharedPtr msg0) { 
+              // decompress the Image
+              static cv_bridge::CvImagePtr cv_ptr;
+              cv_ptr = cv_bridge::toCvCopy(msg0, sensor_msgs::image_encodings::BGR8);
+              sensor_msgs::msg::Image::SharedPtr msg1 = cv_ptr->toImageMsg();
+              msg1->header = msg0->header;
+              callback_monocular(msg1, i);
+              });
+
+            subs_cam_compressed.push_back(sub);
+      } else {
+        PRINT_INFO("subscribing to cam (mono): %s\n", cam_topic.c_str());
+        auto sub = _node->create_subscription<sensor_msgs::msg::Image>(
+            cam_topic, 10, [this, i](const sensor_msgs::msg::Image::SharedPtr msg0) { callback_monocular(msg0, i); });
+        subs_cam.push_back(sub);
+      }
       PRINT_INFO("subscribing to cam (mono): %s\n", cam_topic.c_str());
     }
   }
