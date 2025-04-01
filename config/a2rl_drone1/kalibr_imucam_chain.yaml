@@ -18,6 +18,6 @@ cam0:
   intrinsics: [578.2412978105732, 579.9844654395122, 655.5493833711452, 390.26621117758594]
   line_delay: 1.6221498855913713e-05
   resolution: [1280, 720]
-  rostopic: /drone0/sensor_measurements/camera/image
+  rostopic: /drone0/sensor_measurements/camera/image/compressed
   timeshift_cam_imu: -0.034390720883302445
 
