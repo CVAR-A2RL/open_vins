@@ -146,16 +146,23 @@ public:
     double inner1 = e_1.dot(z_axis) / z_axis.norm();
     double inner2 = e_2.dot(z_axis) / z_axis.norm();
     if (fabs(inner1) < fabs(inner2)) {
-      x_axis = z_axis.cross(e_1);
-      x_axis = x_axis / x_axis.norm();
-      y_axis = z_axis.cross(x_axis);
-      y_axis = y_axis / y_axis.norm();
+      std::cout<< " ENTERING IN THE FIRST IF STATEMENT " << std::endl;
+      // x_axis = z_axis.cross(e_1);
+      // x_axis = x_axis / x_axis.norm();
+      // y_axis = z_axis.cross(x_axis);
+      // y_axis = y_axis / y_axis.norm();
     } else {
+      std::cout<< " ENTERING IN THE SECOND IF STATEMENT " << std::endl;
+      // x_axis = z_axis.cross(e_2);
+      // x_axis = x_axis / x_axis.norm();
+      // y_axis = z_axis.cross(x_axis);
+      // y_axis = y_axis / y_axis.norm();
+    }
+      std::cout<< " FORCING 2ND CASE " << std::endl;
       x_axis = z_axis.cross(e_2);
       x_axis = x_axis / x_axis.norm();
       y_axis = z_axis.cross(x_axis);
       y_axis = y_axis / y_axis.norm();
-    }
 
     // Original method
     // https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process
