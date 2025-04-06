@@ -17,5 +17,5 @@ cam0:
   intrinsics: [602.4848076202419, 603.0794557770489, 617.4980165811747, 370.50854665742463]
   resolution: [1280, 720]
   rostopic: /drone0/sensor_measurements/camera/image/compressed
-  timeshift_cam_imu: -0.03277403735452608
+  timeshift_cam_imu: -0.032521350044720586
 
