@@ -2,17 +2,18 @@
 
 imu0:
   T_i_b:
-    - [-1.0, 0.0, 0.0, 0.0]
-    - [0.0, -1.0, 0.0, 0.0]
-    - [0.0, 0.0, -1.0, 0.0]
+    - [1.0, 0.0, 0.0, 0.0]
+    - [0.0, 1.0, 0.0, 0.0]
+    - [0.0, 0.0, 1.0, 0.0]
     - [0.0, 0.0, 0.0, 1.0]
-  accelerometer_noise_density: 0.002920027383765591 
-  accelerometer_random_walk: 0.0005964647047300914 
-  gyroscope_noise_density: 0.00011617422084337228 
-  gyroscope_random_walk: 4.3281014519449e-06 
-  rostopic: '/drone0/sensor_measurements/imu' 
-  update_rate: 200 
+  accelerometer_noise_density: 0.0025624546199207194
+  accelerometer_random_walk: 8.055323021637122e-05
+  gyroscope_noise_density: 0.00011090831806067944
+  gyroscope_random_walk: 2.5135360798417067e-06
+  model: calibrated
+  rostopic: /drone0/sensor_measurements/imu
   time_offset: 0.0
+  update_rate: 200
   # three different modes supported:
   # "calibrated" (same as "kalibr"), "kalibr", "rpng"
   model: "kalibr"
