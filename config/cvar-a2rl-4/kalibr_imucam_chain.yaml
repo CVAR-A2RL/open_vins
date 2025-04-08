@@ -18,6 +18,6 @@ cam0:
   distortion_model: radtan
   intrinsics: [575.7566026563184, 574.7080738844406, 648.6086164487194, 341.4505018562775]
   resolution: [1280, 720]
-  rostopic: /drone0/sensor_measurements/camera/image
+  rostopic: /drone0/sensor_measurements/camera/image/compressed
   timeshift_cam_imu: -0.03427902517150773
 
