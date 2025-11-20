@@ -355,6 +355,43 @@ void ROS2Visualizer::visualize_odometry(double timestamp) {
     tf2::Quaternion new_orientation = rotation_z_180 * original_orientation;
     new_orientation.normalize();
     odomIinM.pose.pose.orientation = tf2::toMsg(new_orientation);
+
+    // Apply the same rotation to the covariances
+    // Create rotation matrix from quaternion
+    Eigen::Matrix3d R_z_180;
+    R_z_180 << -1,  0, 0,
+                0, -1, 0,
+                0,  0, 1;  // 180° rotation around Z-axis
+
+    // Create 6x6 rotation matrices for pose and twist
+    Eigen::Matrix<double, 6, 6> R_pose = Eigen::Matrix<double, 6, 6>::Identity();
+    R_pose.block<3, 3>(0, 0) = R_z_180;  // Rotate position covariance
+    R_pose.block<3, 3>(3, 3) = R_z_180;  // Rotate orientation covariance
+
+    Eigen::Matrix<double, 6, 6> R_twist = Eigen::Matrix<double, 6, 6>::Identity();
+    R_twist.block<3, 3>(0, 0) = R_z_180;  // Rotate linear velocity covariance
+    R_twist.block<3, 3>(3, 3) = R_z_180;  // Rotate angular velocity covariance
+
+    // Extract current covariances
+    Eigen::Matrix<double, 6, 6> pose_cov, twist_cov;
+    for (int r = 0; r < 6; r++) {
+      for (int c = 0; c < 6; c++) {
+        pose_cov(r, c) = odomIinM.pose.covariance[6 * r + c];
+        twist_cov(r, c) = odomIinM.twist.covariance[6 * r + c];
+      }
+    }
+
+    // Rotate covariances: Σ_new = R × Σ_old × R^T
+    pose_cov = R_pose * pose_cov * R_pose.transpose();
+    twist_cov = R_twist * twist_cov * R_twist.transpose();
+
+    // Write back to message
+    for (int r = 0; r < 6; r++) {
+      for (int c = 0; c < 6; c++) {
+        odomIinM.pose.covariance[6 * r + c] = pose_cov(r, c);
+        odomIinM.twist.covariance[6 * r + c] = twist_cov(r, c);
+      }
+    }
     
     pub_odomimu->publish(odomIinM);
   }
