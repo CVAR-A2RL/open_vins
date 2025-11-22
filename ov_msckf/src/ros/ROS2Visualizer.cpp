@@ -175,6 +175,19 @@ void ROS2Visualizer::setup_subscribers(std::shared_ptr<ov_core::YamlParser> pars
                                                               std::bind(&ROS2Visualizer::callback_inertial, this, std::placeholders::_1));
   PRINT_INFO("subscribing to IMU: %s\n", topic_imu.c_str());
 
+  // Create pose subscriber if enabled (for external pose measurements)
+  if (_app->get_params().use_pose_updates) {
+    std::string topic_pose;
+    // Use get_parameter_or to handle both declared and undeclared parameters
+    topic_pose = _node->get_parameter_or("topic_pose", std::string("/external_pose"));
+    // Note: parse_external is optional and only needed if you want to override via config file
+    // parser->parse_external("relative_config_pose", "pose0", "rostopic", topic_pose);
+    sub_pose = _node->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+        topic_pose, rclcpp::SensorDataQoS(),
+        std::bind(&ROS2Visualizer::callback_pose, this, std::placeholders::_1));
+    PRINT_INFO("subscribing to POSE: %s\n", topic_pose.c_str());
+  }
+
   // Logic for sync stereo subscriber
   // https://answers.ros.org/question/96346/subscribe-to-two-image_raws-with-one-function/?answer=96491#post-id-96491
   if (_app->get_params().state_options.num_cameras == 2) {
@@ -565,6 +578,42 @@ void ROS2Visualizer::callback_inertial(const sensor_msgs::msg::Imu::SharedPtr ms
   } else {
     thread.detach();
   }
+}
+
+void ROS2Visualizer::callback_pose(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+
+  // Convert ROS message to OpenVINS format
+  ov_core::PoseData pose_data;
+
+  // Extract timestamp
+  pose_data.timestamp = msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9;
+
+  // Extract position
+  pose_data.pos << msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z;
+
+  // Extract orientation (quaternion in x, y, z, w format - JPL convention)
+  pose_data.quat << msg->pose.pose.orientation.x, msg->pose.pose.orientation.y, msg->pose.pose.orientation.z,
+      msg->pose.pose.orientation.w;
+
+  // Extract covariance (ROS convention is [position, orientation])
+  // OpenVINS expects 6x6 matrix with same ordering
+  for (int r = 0; r < 3; r++) {
+    for (int c = 0; c < 3; c++) {
+      // Position covariance (top-left 3x3)
+      pose_data.covariance(r, c) = msg->pose.covariance[r * 6 + c];
+      // Position-orientation cross covariance (top-right 3x3)
+      pose_data.covariance(r, c + 3) = msg->pose.covariance[r * 6 + (c + 3)];
+      // Orientation-position cross covariance (bottom-left 3x3)
+      pose_data.covariance(r + 3, c) = msg->pose.covariance[(r + 3) * 6 + c];
+      // Orientation covariance (bottom-right 3x3)
+      pose_data.covariance(r + 3, c + 3) = msg->pose.covariance[(r + 3) * 6 + (c + 3)];
+    }
+  }
+
+  // Feed to VIO system
+  _app->feed_measurement_pose(pose_data);
+
+  PRINT_DEBUG("[ROS-POSE]: Received pose at timestamp %.3f\n", pose_data.timestamp);
 }
 
 void ROS2Visualizer::callback_monocular(const sensor_msgs::msg::Image::SharedPtr msg0, int cam_id0) {

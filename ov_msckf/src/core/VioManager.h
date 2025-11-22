@@ -50,6 +50,7 @@ class StateHelper;
 class UpdaterMSCKF;
 class UpdaterSLAM;
 class UpdaterZeroVelocity;
+class UpdaterPose;
 class Propagator;
 
 /**
@@ -88,6 +89,12 @@ public:
    */
   void feed_measurement_simulation(double timestamp, const std::vector<int> &camids,
                                    const std::vector<std::vector<std::pair<size_t, Eigen::VectorXf>>> &feats);
+
+  /**
+   * @brief Feed function for external pose measurements with covariance
+   * @param message Contains our timestamp, pose (position + orientation), and covariance
+   */
+  void feed_measurement_pose(const ov_core::PoseData &message);
 
   /**
    * @brief Given a state, this will initialize our IMU state.
@@ -205,6 +212,9 @@ protected:
 
   /// Our zero velocity tracker
   std::shared_ptr<UpdaterZeroVelocity> updaterZUPT;
+
+  /// Our pose updater (for external pose measurements)
+  std::shared_ptr<UpdaterPose> updaterPOSE;
 
   /// This is the queue of measurement times that have come in since we starting doing initialization
   /// After we initialize, we will want to prop & update to the latest timestamp quickly

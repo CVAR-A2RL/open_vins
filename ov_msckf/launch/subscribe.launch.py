@@ -44,6 +44,11 @@ launch_args = [
         name="save_total_state",
         default_value="false",
         description="record the total state with calibration and features to a txt file",
+    ),
+    DeclareLaunchArgument(
+        name="topic_pose",
+        default_value="/external_pose",
+        description="topic name for external pose measurements with covariance (PoseWithCovarianceStamped)",
     )
 ]
 
@@ -85,6 +90,7 @@ def launch_setup(context):
             {"use_stereo": LaunchConfiguration("use_stereo")},
             {"max_cameras": LaunchConfiguration("max_cameras")},
             {"save_total_state": LaunchConfiguration("save_total_state")},
+            {"topic_pose": LaunchConfiguration("topic_pose")},
             {"config_path": config_path},
         ],
     )

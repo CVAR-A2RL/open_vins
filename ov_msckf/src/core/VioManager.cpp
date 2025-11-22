@@ -42,6 +42,7 @@
 #include "update/UpdaterMSCKF.h"
 #include "update/UpdaterSLAM.h"
 #include "update/UpdaterZeroVelocity.h"
+#include "update/UpdaterPose.h"
 
 using namespace ov_core;
 using namespace ov_type;
@@ -161,6 +162,12 @@ VioManager::VioManager(VioManagerOptions &params_) : thread_init_running(false),
                                                         propagator, params.gravity_mag, params.zupt_max_velocity,
                                                         params.zupt_noise_multiplier, params.zupt_max_disparity);
   }
+
+  // If we are using external pose updates, then create the updater
+  if (params.use_pose_updates) {
+    updaterPOSE = std::make_shared<UpdaterPose>(params.msckf_options);
+    PRINT_DEBUG("UpdaterPose initialized for external pose measurements\n");
+  }
 }
 
 void VioManager::feed_measurement_imu(const ov_core::ImuData &message) {
@@ -186,6 +193,34 @@ void VioManager::feed_measurement_imu(const ov_core::ImuData &message) {
   if (is_initialized_vio && updaterZUPT != nullptr && (!params.zupt_only_at_beginning || !has_moved_since_zupt)) {
     updaterZUPT->feed_imu(message, oldest_time);
   }
+}
+
+void VioManager::feed_measurement_pose(const ov_core::PoseData &message) {
+
+  // Return if we are not initialized or don't have the updater
+  if (!is_initialized_vio || updaterPOSE == nullptr) {
+    return;
+  }
+
+  // Get the oldest time we need to keep measurements
+  double oldest_time = state->margtimestep();
+  if (oldest_time > state->_timestamp) {
+    oldest_time = -1;
+  }
+
+  // Feed the pose measurement to the updater
+  updaterPOSE->feed_pose(message, oldest_time);
+
+  // NOTE: We don't call try_update() here to avoid threading issues!
+  // The pose measurements are queued in UpdaterPose and will be processed
+  // by the main tracking thread in do_feature_propagate_update()
+  // This prevents race conditions with other state modifications
+  
+  // OLD CODE (caused threading issues):
+  // bool did_update = updaterPOSE->try_update(state, message.timestamp);
+  // if (did_update) {
+  //   PRINT_DEBUG("[POSE]: Update successful at timestamp %.3f\n", message.timestamp);
+  // }
 }
 
 void VioManager::feed_measurement_simulation(double timestamp, const std::vector<int> &camids,
@@ -547,6 +582,17 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
   updaterSLAM->delayed_init(state, feats_slam_DELAYED);
   rT6 = boost::posix_time::microsec_clock::local_time();
 
+  //===================================================================================
+  // Pose measurement updates (external pose with covariance)
+  //===================================================================================
+
+  // Try to perform pose updates from queued measurements
+  // This is done in the main tracking thread to avoid threading issues
+  if (updaterPOSE != nullptr) {
+    // Try updates at the current timestamp (or recent timestamps)
+    updaterPOSE->try_update(state, state->_timestamp);
+  }
+  
   //===================================================================================
   // Update our visualization feature set, and clean up the old features
   //===================================================================================

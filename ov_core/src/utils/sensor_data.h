@@ -78,6 +78,32 @@ struct CameraData {
   }
 };
 
+/**
+ * @brief Struct for a pose measurement with covariance
+ *
+ * This struct contains a full 6DOF pose measurement (position and orientation)
+ * along with its associated covariance matrix. Can be used for external pose
+ * updates from sources like motion capture, GPS+compass, or other localization systems.
+ */
+struct PoseData {
+
+  /// Timestamp of the reading
+  double timestamp;
+
+  /// Position in global frame (x, y, z) in meters
+  Eigen::Matrix<double, 3, 1> pos;
+
+  /// Orientation quaternion (x, y, z, w) in JPL format
+  Eigen::Matrix<double, 4, 1> quat;
+
+  /// 6x6 covariance matrix [position; orientation]
+  /// First 3x3 block is position covariance, last 3x3 is orientation covariance
+  Eigen::Matrix<double, 6, 6> covariance;
+
+  /// Sort function to allow for using of STL containers
+  bool operator<(const PoseData &other) const { return timestamp < other.timestamp; }
+};
+
 } // namespace ov_core
 
 #endif // OV_CORE_SENSOR_DATA_H
