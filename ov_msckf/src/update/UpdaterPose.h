@@ -53,8 +53,9 @@ public:
   /**
    * @brief Constructor
    * @param options Updater options (chi2 multiplier, etc.)
+   * @param rotate_180 If true, rotate input pose by 180 degrees in yaw
    */
-  UpdaterPose(UpdaterOptions &options);
+  UpdaterPose(UpdaterOptions &options, bool rotate_180 = false);
 
   /**
    * @brief Feed function for pose data
@@ -74,6 +75,9 @@ public:
 protected:
   /// Options used during update (chi2 multiplier)
   UpdaterOptions _options;
+
+  /// If we should rotate input pose by 180 degrees in yaw
+  bool _rotate_180;
 
   /// Chi squared 95th percentile table (lookup by DOF)
   std::map<int, double> chi_squared_table;

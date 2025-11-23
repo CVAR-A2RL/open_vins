@@ -165,8 +165,11 @@ VioManager::VioManager(VioManagerOptions &params_) : thread_init_running(false),
 
   // If we are using external pose updates, then create the updater
   if (params.use_pose_updates) {
-    updaterPOSE = std::make_shared<UpdaterPose>(params.msckf_options);
+    updaterPOSE = std::make_shared<UpdaterPose>(params.pose_options, params.rotate_input_pose_180);
     PRINT_DEBUG("UpdaterPose initialized for external pose measurements\n");
+    if (params.rotate_input_pose_180) {
+      PRINT_DEBUG("  - Input poses will be rotated by 180 degrees in yaw\n");
+    }
   }
 }
 

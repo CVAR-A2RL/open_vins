@@ -33,17 +33,67 @@ using namespace ov_core;
 using namespace ov_type;
 using namespace ov_msckf;
 
-UpdaterPose::UpdaterPose(UpdaterOptions &options) : _options(options) {
+UpdaterPose::UpdaterPose(UpdaterOptions &options, bool rotate_180) : _options(options), _rotate_180(rotate_180) {
   // Initialize chi squared test table with confidence level 0.95
   for (int i = 1; i < 100; i++) {
     boost::math::chi_squared chi_squared_dist(i);
     chi_squared_table[i] = boost::math::quantile(chi_squared_dist, 0.95);
   }
+  
+  PRINT_DEBUG("[POSE]: UpdaterPose initialized\n");
+  PRINT_DEBUG("[POSE]:   chi2_multipler = %.2f\n", _options.chi2_multipler);
+  PRINT_DEBUG("[POSE]:   rotate_180 = %s\n", _rotate_180 ? "true" : "false");
 }
 
 void UpdaterPose::feed_pose(const ov_core::PoseData &message, double oldest_time) {
   // Add the pose measurement to our buffer
-  pose_data.push_back(message);
+  ov_core::PoseData pose_to_add = message;
+  
+  // If rotation is enabled, rotate the pose by 180 degrees in yaw
+  if (_rotate_180) {
+    // Create a 180-degree rotation around Z-axis using rotation matrix method
+    // Step 1: Convert input quaternion to rotation matrix
+    Eigen::Matrix3d R_orig = quat_2_Rot(message.quat);
+    
+    // Step 2: Create 180° rotation around Z-axis matrix
+    Eigen::Matrix3d R_z_180;
+    R_z_180 << -1.0,  0.0, 0.0,
+                0.0, -1.0, 0.0,
+                0.0,  0.0, 1.0;
+    
+    // Step 3: Apply rotation: R_new = R_z_180 * R_orig
+    Eigen::Matrix3d R_rotated = R_z_180 * R_orig;
+    
+    // Step 4: Convert back to quaternion
+    pose_to_add.quat = rot_2_quat(R_rotated);
+    
+    // Extract yaw for debug output
+    double yaw_orig = std::atan2(R_orig(1, 0), R_orig(0, 0));
+    double yaw_rotated = std::atan2(R_rotated(1, 0), R_rotated(0, 0));
+  
+    
+    // For position: Rotate by 180° around Z-axis
+    // This flips X and Y, keeps Z the same
+    Eigen::Matrix3d R_rot_180;
+    R_rot_180 << -1.0,  0.0, 0.0,
+                  0.0, -1.0, 0.0,
+                  0.0,  0.0, 1.0;
+    pose_to_add.pos = R_rot_180 * message.pos;
+    
+    // Covariance doesn't change for a 180° rotation around Z
+    // (it's symmetric around the rotation axis)
+    pose_to_add.covariance = message.covariance;
+    
+    PRINT_DEBUG("[POSE]: Rotated input pose by 180 degrees in yaw\n");
+    PRINT_DEBUG("[POSE]:   Original quat: [%.3f, %.3f, %.3f, %.3f]\n", 
+                message.quat(0), message.quat(1), message.quat(2), message.quat(3));
+    PRINT_DEBUG("[POSE]:   Rotated quat:  [%.3f, %.3f, %.3f, %.3f]\n", 
+                pose_to_add.quat(0), pose_to_add.quat(1), pose_to_add.quat(2), pose_to_add.quat(3));
+    PRINT_DEBUG("[POSE]:   Original yaw: %.2f deg, Rotated yaw: %.2f deg\n", 
+                yaw_orig * 180.0 / M_PI, yaw_rotated * 180.0 / M_PI);
+  }
+  
+  pose_data.push_back(pose_to_add);
   
   // Clean old measurements
   clean_old_pose_measurements(oldest_time - 0.10);
@@ -205,6 +255,14 @@ bool UpdaterPose::try_update(std::shared_ptr<State> state, double timestamp) {
   // Check against chi-squared threshold
   int dof = res.rows();
   double chi2_thresh = chi_squared_table[dof] * _options.chi2_multipler;
+  
+  PRINT_WARNING("[POSE-DEBUG]: Chi-squared calculation:\n");
+  PRINT_WARNING("[POSE-DEBUG]:   DOF = %d\n", dof);
+  PRINT_WARNING("[POSE-DEBUG]:   chi2_table[%d] = %.2f\n", dof, chi_squared_table[dof]);
+  PRINT_WARNING("[POSE-DEBUG]:   chi2_multipler = %.2f\n", _options.chi2_multipler);
+  PRINT_WARNING("[POSE-DEBUG]:   threshold = %.2f * %.2f = %.2f\n", 
+              chi_squared_table[dof], _options.chi2_multipler, chi2_thresh);
+  PRINT_WARNING("[POSE-DEBUG]:   actual chi2 = %.2f\n", chi2);
   
   if (chi2 > chi2_thresh) {
     PRINT_WARNING(YELLOW "[POSE]: Chi-squared test failed (%.2f > %.2f), rejecting measurement\n" RESET,

@@ -97,6 +97,9 @@ struct VioManagerOptions {
   /// If we should use external pose updates with covariance
   bool use_pose_updates = false;
 
+  /// If we should rotate input pose by 180 degrees in yaw
+  bool rotate_input_pose_180 = false;
+
   /// If we should record the timing performance to file
   bool record_timing_information = false;
 
@@ -121,6 +124,7 @@ struct VioManagerOptions {
       parser->parse_config("zupt_max_disparity", zupt_max_disparity);
       parser->parse_config("zupt_only_at_beginning", zupt_only_at_beginning);
       parser->parse_config("use_pose_updates", use_pose_updates);
+      parser->parse_config("rotate_input_pose_180", rotate_input_pose_180);
       parser->parse_config("record_timing_information", record_timing_information);
       parser->parse_config("record_timing_filepath", record_timing_filepath);
     }
@@ -131,6 +135,7 @@ struct VioManagerOptions {
     PRINT_DEBUG("  - zupt_max_disparity: %.4f\n", zupt_max_disparity);
     PRINT_DEBUG("  - zupt_only_at_beginning?: %d\n", zupt_only_at_beginning);
     PRINT_DEBUG("  - use_pose_updates: %d\n", use_pose_updates);
+    PRINT_DEBUG("  - rotate_input_pose_180: %d\n", rotate_input_pose_180);
     PRINT_DEBUG("  - record timing?: %d\n", (int)record_timing_information);
     PRINT_DEBUG("  - record timing filepath: %s\n", record_timing_filepath.c_str());
   }
@@ -151,6 +156,9 @@ struct VioManagerOptions {
 
   /// Update options for zero velocity (chi2 multiplier)
   UpdaterOptions zupt_options;
+
+  /// Update options for external pose measurements (chi2 multiplier)
+  UpdaterOptions pose_options;
 
   /**
    * @brief This function will load print out all noise parameters loaded.
@@ -178,6 +186,7 @@ struct VioManagerOptions {
       slam_options.sigma_pix_sq = std::pow(slam_options.sigma_pix, 2);
       aruco_options.sigma_pix_sq = std::pow(aruco_options.sigma_pix, 2);
       parser->parse_config("zupt_chi2_multipler", zupt_options.chi2_multipler);
+      parser->parse_config("pose_chi2_multipler", pose_options.chi2_multipler);
     }
     PRINT_DEBUG("  Updater MSCKF Feats:\n");
     msckf_options.print();
@@ -187,6 +196,8 @@ struct VioManagerOptions {
     aruco_options.print();
     PRINT_DEBUG("  Updater ZUPT:\n");
     zupt_options.print();
+    PRINT_DEBUG("  Updater POSE:\n");
+    pose_options.print();
   }
 
   // STATE DEFAULTS ==========================
